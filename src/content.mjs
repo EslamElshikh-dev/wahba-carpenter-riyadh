@@ -10,6 +10,7 @@ export const brand = {
   maps: 'https://www.google.com/maps?q=Riyadh+Saudi+Arabia',
   embed: 'https://www.google.com/maps?q=Riyadh+Saudi+Arabia&z=11&output=embed',
   verification: process.env.GOOGLE_SITE_VERIFICATION || 'a5AfDDI67VsUYxqSvx00gPy5bqSb1V9YoZ1DX8-GkxY',
+  additionalVerifications: ['ROSujslYlPaNjHSwAN6Zo1rI290pLlnGPQx8PzfseWg'],
 };
 
 export const services = [
