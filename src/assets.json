@@ -1,0 +1,38 @@
+{
+  "tv": {
+    "width": 1672,
+    "height": 941,
+    "sizes": [
+      480,
+      960,
+      1440
+    ]
+  },
+  "wardrobe": {
+    "width": 1672,
+    "height": 941,
+    "sizes": [
+      480,
+      960,
+      1440
+    ]
+  },
+  "partition": {
+    "width": 1672,
+    "height": 941,
+    "sizes": [
+      480,
+      960,
+      1440
+    ]
+  },
+  "bedroom": {
+    "width": 1672,
+    "height": 941,
+    "sizes": [
+      480,
+      960,
+      1440
+    ]
+  }
+}
