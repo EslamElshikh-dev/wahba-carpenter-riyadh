@@ -35,3 +35,8 @@ npm run check
 
 ## الطلب والقياس
 النموذج يجهز نص WhatsApp محليًا، ولا يرسل رسالة تلقائيًا أو يخزن بيانات. إشارات dataLayer: phone_click وwhatsapp_click وquote_request وmap_click.
+
+
+## Google Business Profile monitor
+
+The protected-data administration interface is available at `/admin/verification`. Google OAuth and live API access remain disabled until the approved project and server-only credentials are configured. See [setup instructions](docs/GOOGLE_BUSINESS_API_SETUP.md). Run `node --test tests/gbp-api.test.mjs` for the synthetic OAuth and access-control checks. No verification attempt is initiated by this version.

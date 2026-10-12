@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ar-SA" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="description" content="واجهة الإدارة لمتابعة حالة التحقق والخيارات المتاحة للملف التجاري عبر حساب Google المصرّح له.">
+  <meta name="google-site-verification" content="a5AfDDI67VsUYxqSvx00gPy5bqSb1V9YoZ1DX8-GkxY">
+  <meta name="google-site-verification" content="ROSujslYlPaNjHSwAN6Zo1rI290pLlnGPQx8PzfseWg">
+  <link rel="canonical" href="https://wahba-carpenter-riyadh.vercel.app/admin/verification">
+  <title>متابعة التحقق | إدارة وهبة النجار</title>
+  <link rel="icon" href="/assets/icon-192.png">
+  <link rel="stylesheet" href="/assets/verification.css">
+  <script src="/assets/verification.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">انتقل إلى المحتوى</a>
+  <header class="top"><a class="brand" href="/"><img src="/assets/logo.svg" alt="" width="44" height="44"><span>وهبة النجار<small>مساحة الإدارة · الرياض</small></span></a><a class="back" href="/">زيارة الموقع <span aria-hidden="true">↗</span></a></header>
+  <main id="main" class="shell">
+    <section class="intro"><div><span class="eyebrow">متابعة الملف التجاري</span><h1>حالة واضحة.<br><span>خطوة محسوبة.</span></h1><p>تابع ما تعرضه Google عن حالة الملف، والمحاولات السابقة، وطرق التحقق المتاحة لحساب الإدارة.</p></div><div class="intro-mark" aria-hidden="true"><svg viewBox="0 0 100 100" fill="none"><path d="M50 8 82 23v25c0 23-19 36-32 44C37 84 18 71 18 48V23L50 8Z" stroke="currentColor" stroke-width="2"/><path d="m34 50 10 10 23-25" stroke="currentColor" stroke-width="3"/><circle cx="50" cy="50" r="45" stroke="currentColor" opacity=".2"/></svg></div></section>
+    <div class="notice" role="status" id="notice">جارٍ قراءة إعدادات الربط…</div>
+    <div class="layout"><section class="work">
+      <section class="card connection"><div class="card-top"><h2>ربط حساب الإدارة</h2><span class="badge" id="connection-badge">جارٍ الفحص</span></div><p id="connection-copy">تظهر بيانات Google بعد تسجيل الدخول وإتمام الإعداد المطلوب.</p><div class="actions"><button id="login" class="primary" disabled>تسجيل الدخول بحساب Google <span aria-hidden="true">↗</span></button><button id="logout" class="secondary" hidden>إنهاء جلسة المتابعة</button></div><p class="fine">تطلب Google صلاحية إدارة الملفات التجارية. تستخدم هذه الواجهة القراءة والمتابعة، وتتحقق من بريد حساب الإدارة قبل إظهار البيانات. تنتهي الجلسة خلال ساعة كحد أقصى.</p></section>
+      <section class="card" id="selector" hidden><div class="card-top"><h2>اختيار الملف</h2><button id="reload-accounts" class="secondary">تحديث الحسابات</button></div><label for="account">حساب الملفات التجارية</label><select id="account"><option value="">اختر الحساب</option></select><button id="more-accounts" class="text-button" hidden>عرض حسابات إضافية</button><label for="location">الملف التجاري</label><select id="location"><option value="">اختر الملف</option></select><button id="more-locations" class="text-button" hidden>عرض ملفات إضافية</button><p class="fine">اختر الملف الذي يطابق اسم النشاط ورقمه. معرّف المورد هنا يأتي مباشرةً من Google API.</p></section>
+      <section class="card status-card"><div class="card-top"><h2>الحالة لدى Google</h2><button id="refresh-status" class="secondary" disabled>تحديث الحالة</button></div><div class="state-line"><span class="status-dot" id="status-dot"></span><div><h3 id="status-title">لم تُقرأ الحالة بعد</h3><p id="status-copy">اختر ملفًا من حساب الإدارة لعرض الحالة الفعلية.</p></div></div><div class="facts"><div><span>سلطة الملف لدى Google</span><strong id="authority">—</strong></div><div><span>حالة الإدارة والنشر</span><strong id="voice">—</strong></div><div><span>آخر قراءة ناجحة</span><strong id="checked">—</strong></div></div><details><summary>فهم الحالة</summary><p>قد تُظهر Google أن سلطة الملف مكتسبة بينما مراجعة جودة الملف مستمرة. تُقرأ حالة الملف الحالية وسجل محاولات التحقق كلٌّ على حدة.</p></details></section>
+      <section class="card"><div class="card-top"><h2>طرق التحقق المتاحة</h2><button id="fetch-options" class="secondary" disabled>قراءة الخيارات</button></div><div id="options" class="empty">ستظهر الطرق التي ترجعها Google لهذا الملف، عند طلب قراءتها.</div></section>
+      <section class="card"><div class="card-top"><h2>سجل محاولات التحقق</h2><span class="badge neutral" id="history-count">لم يُقرأ بعد</span></div><div id="history" class="empty">تظهر المحاولات والتواريخ والنتائج كما ترجعها Google.</div></section>
+    </section><aside>
+      <section class="card target"><span class="eyebrow">النشاط المستهدف</span><h2>وهبة النجار</h2><p>نجار · نطاق خدمة الرياض</p><dl><dt>رقم الاتصال</dt><dd dir="ltr">+966 59 508 0326</dd><dt>معرّف لوحة الملف التجاري</dt><dd dir="ltr">1310426400263731431</dd></dl><p class="fine">المعلومات التعريفية أعلاه من بيانات النشاط. حالة Google تُعرض فقط بعد قراءة API ناجحة.</p></section>
+      <section class="card readiness"><h2>جاهزية الربط</h2><ol><li class="done"><strong>واجهة المتابعة</strong><span>تم تجهيز الواجهة ومسارات القراءة.</span></li><li id="oauth-step"><strong>مشروع Google وOAuth</strong><span id="oauth-readiness">بانتظار إعداد الربط.</span></li><li id="live-step"><strong>قراءة مباشرة من Google</strong><span id="live-readiness">لم يبدأ الاتصال الحي.</span></li></ol><details id="setup-details"><summary>متطلبات الإعداد</summary><ul><li>مشروع Google Cloud موافق عليه للوصول إلى Business Profile APIs.</li><li>تفعيل خدمات الحسابات ومعلومات النشاط والتحقق.</li><li>اعتماد OAuth لحساب الإدارة، وحفظ إعداداته في بيئة الخادم.</li></ul><p>رابط العودة لاعتماد OAuth:</p><code dir="ltr">https://wahba-carpenter-riyadh.vercel.app/api/gbp?action=callback</code></details></section>
+      <section class="card note"><h2>المتابعة حسب الحالة</h2><p>راجع الإجراء الذي تعرضه Google قبل بدء أي محاولة جديدة، خصوصًا عند وجود مراجعة قائمة أو تعارض ملكية.</p><a href="https://support.google.com/business/workflow/12825603" target="_blank" rel="noopener noreferrer">أداة Google الرسمية لحالة التحقق ↗</a></section>
+    </aside></div>
+  </main><footer><span>إدارة وهبة النجار</span><a href="/privacy">الخصوصية</a><span>تطوير المهندس إسلام الشيخ</span></footer>
+</body></html>
+
