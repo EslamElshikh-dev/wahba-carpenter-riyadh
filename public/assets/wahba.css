@@ -1,5 +1,5 @@
 /* Wahba Carpenter: graphite, linen and warm oak. */
-:root{--paper:#f5f4ef;--white:#fffefa;--ink:#23313a;--muted:#657078;--line:#d9d9d2;--copper:#967044;--sand:#e8dfce;--walnut:#23313a}
+:root{--paper:#f5f4ef;--white:#fffefa;--ink:#23313a;--muted:#58636b;--line:#d9d9d2;--copper:#7b5932;--sand:#e8dfce;--walnut:#23313a}
 body{font-size:17px}
 .topline{color:#657078;font-size:12px;padding-block:12px}
 .header{background:rgba(245,244,239,.96);backdrop-filter:blur(14px)}
@@ -43,3 +43,5 @@ input[type=text],textarea{font-size:14px;border-color:#d8d9d3;border-radius:8px}
 @media(prefers-reduced-motion:reduce){.header{backdrop-filter:none}}
 
 .home-map{padding-top:80px}.home-map p{font-size:15px}.home-map h2{font-size:clamp(32px,3.1vw,43px)}@media(max-width:760px){.home-map{padding-top:50px}.home-map p{font-size:14px}}
+.business-hours{display:flex;align-items:flex-start;gap:13px;padding:16px 18px;margin-block:20px;border:1px solid var(--line);border-radius:12px;background:var(--white);width:fit-content;max-width:100%}.business-hours>.icon{margin-top:3px;color:var(--copper)}.business-hours strong{display:block;font-size:14px}.business-hours p{font-size:13px!important;line-height:1.85;margin:3px 0 0!important}.business-hours p span{font-size:12px}.business-hours.compact{padding:0;margin:12px 0 0;border:0;background:transparent}.footer .business-hours strong,.footer .business-hours>.icon{color:#e5c699}.footer .business-hours p{color:#d3d5d4}
+@media(max-width:430px){.header-inner{flex-wrap:nowrap;gap:8px}.header .brand{min-width:0;flex-shrink:1}.header .brand strong{font-size:20px;white-space:nowrap}.header .brand>img{width:40px;height:40px}.header .header-cta{width:44px;min-height:44px;padding:0;font-size:0;gap:0;flex-shrink:0}.header .header-cta .icon{width:23px;height:23px}.menu-toggle{width:44px;height:44px;flex-shrink:0}.business-hours{padding:14px;gap:10px}.business-hours p{font-size:12px!important}}

@@ -12,11 +12,12 @@ for(const f of pages){
   assert.match(h,/<html lang="ar-SA" dir="rtl">/,'Arabic RTL');
   assert.match(h,/<meta name="description" content="[^\"]{25,}"/,'description');
   assert.match(h.split('</head>')[0],/<meta name="google-site-verification" content="a5AfDDI67VsUYxqSvx00gPy5bqSb1V9YoZ1DX8-GkxY">/,'Google ownership tag in head');
+  assert.match(h.split('</head>')[0],/<meta name="google-site-verification" content="ROSujslYlPaNjHSwAN6Zo1rI290pLlnGPQx8PzfseWg">/,'requested Google verification tag in head');
   const canonical=h.match(/rel="canonical" href="([^\"]+)"/)[1];assert.equal(new URL(canonical).origin,'https://wahba-carpenter-riyadh.vercel.app');
   const raw=h.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1];const data=JSON.parse(raw);graphs++;
   assert.equal(data['@context'],'https://schema.org');assert(data['@graph'].every(x=>x['@type']));
   const organization=data['@graph'].find(x=>x['@type']==='Organization');assert.equal(organization.name,'وهبة النجار');assert.equal(organization.telephone,'+966595080326');
-  assert(!raw.includes('AggregateRating'),'no self-serving rating markup');assert(!raw.includes('streetAddress'),'no invented street address');assert(!raw.includes('hoursAvailable'),'no unconfirmed hours');assert(!raw.includes('sameAs'),'no unconfirmed profile association');const visibleText=h.replace(/<[^>]+>/g,'');assert(!h.includes('0556043982')&&!h.includes('966556043982')&&!visibleText.includes('4.9')&&!h.includes('26 مراجعة'),'independent business data');
+  assert(!raw.includes('AggregateRating'),'no self-serving rating markup');assert(!raw.includes('streetAddress'),'no invented street address');assert.equal(organization.identifier.value,'1310426400263731431','verified Google Business Profile ID');assert.equal(organization.contactPoint.hoursAvailable[0].opens,'09:00');assert.equal(organization.contactPoint.hoursAvailable[0].closes,'21:00');assert.equal(organization.contactPoint.hoursAvailable[0].dayOfWeek.length,6);assert(!organization.contactPoint.hoursAvailable[0].dayOfWeek.includes('https://schema.org/Friday'),'Friday is closed');assert(!raw.includes('sameAs'),'no unconfirmed profile association');const visibleText=h.replace(/<[^>]+>/g,'');assert(!h.includes('0556043982')&&!h.includes('966556043982')&&!visibleText.includes('4.9')&&!h.includes('26 مراجعة'),'independent business data');
   assert(!raw.includes('LocalBusiness'),'do not request address-dependent rich results without a physical address');
   for(const m of h.matchAll(/(?:href|src)="(\/[^\"]*)"/g)){
    const target=m[1].split('#')[0].split('?')[0];links++;

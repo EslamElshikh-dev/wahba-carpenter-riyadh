@@ -11,6 +11,11 @@ export const brand = {
   embed: 'https://www.google.com/maps?q=Riyadh+Saudi+Arabia&z=11&output=embed',
   verification: process.env.GOOGLE_SITE_VERIFICATION || 'a5AfDDI67VsUYxqSvx00gPy5bqSb1V9YoZ1DX8-GkxY',
   additionalVerifications: ['ROSujslYlPaNjHSwAN6Zo1rI290pLlnGPQx8PzfseWg'],
+  googleBusinessProfileId: '1310426400263731431',
+  hoursText: 'السبت إلى الخميس: 9 صباحًا – 9 مساءً',
+  closedText: 'الجمعة: مغلق',
+  serviceHours: [{days:['Saturday','Sunday','Monday','Tuesday','Wednesday','Thursday'],opens:'09:00',closes:'21:00'}],
+  updatedAt: '2026-10-12',
 };
 
 export const services = [
