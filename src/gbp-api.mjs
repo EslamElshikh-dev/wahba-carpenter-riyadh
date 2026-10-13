@@ -62,6 +62,43 @@ function csrf(request,session,origin) {
 }
 function pageToken(url) {const token=url.searchParams.get('pageToken');if(token&&token.length>2048)throw new AppError('INVALID_PAGE_TOKEN');return token;}
 
+async function optionInput(request) {
+  // Addresses stay in a bounded POST body, never in URLs, sessions or logs.
+  const limit=8192;
+  if(Number(request.headers.get('content-length'))>limit)throw new AppError('OPTION_REQUEST_TOO_LARGE',413);
+  let body='';
+  if(request.body) {
+    const reader=request.body.getReader(),chunks=[];let size=0;
+    try {
+      while(true) {
+        const {done,value}=await reader.read();if(done)break;
+        size+=value.byteLength;
+        if(size>limit){await reader.cancel();throw new AppError('OPTION_REQUEST_TOO_LARGE',413);}
+        chunks.push(value);
+      }
+      body=new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(chunks));
+    }catch(error){if(error instanceof AppError)throw error;throw new AppError('INVALID_OPTION_REQUEST');}
+    finally{reader.releaseLock();}
+  }
+  if(!body)return {languages:['ar'],address:null};
+  if(request.headers.get('content-type')?.split(';')[0].trim().toLowerCase()!=='application/json')throw new AppError('INVALID_OPTION_REQUEST');
+  let input;try{input=JSON.parse(body);}catch{throw new AppError('INVALID_OPTION_REQUEST');}
+  if(!input||Array.isArray(input)||typeof input!=='object'||Object.keys(input).some(key=>!['languages','verificationAddress','addressConfirmed'].includes(key)))throw new AppError('INVALID_OPTION_REQUEST');
+  const languages=input.languages??['ar'];
+  if(!Array.isArray(languages)||!languages.length||languages.length>2||languages.some(code=>!['ar','en'].includes(code)))throw new AppError('UNSUPPORTED_LANGUAGE');
+  let address=null;
+  if(input.verificationAddress!==undefined) {
+    if(input.addressConfirmed!==true)throw new AppError('ADDRESS_CONFIRMATION_REQUIRED');
+    const a=input.verificationAddress;
+    if(!a||typeof a!=='object'||Array.isArray(a)||Object.keys(a).some(key=>!['regionCode','administrativeArea','locality','postalCode','addressLines'].includes(key)))throw new AppError('INVALID_VERIFICATION_ADDRESS');
+    const text=(value,max=120)=>typeof value==='string'&&value.trim().length>0&&value.trim().length<=max&&!/[\u0000-\u001f\u007f-\u009f]/.test(value);
+    if(a.regionCode!=='SA'||!text(a.administrativeArea)||!text(a.locality)||!Array.isArray(a.addressLines)||!a.addressLines.length||a.addressLines.length>3||a.addressLines.some(line=>!text(line,200))||(a.postalCode!==undefined&&a.postalCode!==''&&!/^\d{5}$/.test(a.postalCode)))throw new AppError('INVALID_VERIFICATION_ADDRESS');
+    address={regionCode:'SA',administrativeArea:a.administrativeArea.trim(),locality:a.locality.trim(),addressLines:a.addressLines.map(line=>line.trim())};
+    if(a.postalCode)address.postalCode=a.postalCode;
+  }
+  return {languages:[...new Set(languages)],address};
+}
+
 export function createHandler(env,fetcher=fetch,clock=()=>Date.now()) {
   const cfg=settings(env);
   async function google(url,init={}) {
@@ -132,8 +169,8 @@ export function createHandler(env,fetcher=fetch,clock=()=>Date.now()) {
       }
       if(action==='locations'&&request.method==='GET') {
         const account=resource(url.searchParams.get('account'),'accounts');const endpoint=new URL(`https://mybusinessbusinessinformation.googleapis.com/v1/${account}/locations`);
-        endpoint.searchParams.set('readMask','name,title,phoneNumbers,websiteUri,metadata');endpoint.searchParams.set('pageSize','100');const token=pageToken(url);if(token)endpoint.searchParams.set('pageToken',token);
-        const data=await get(endpoint.href);return finish({locations:(data.locations??[]).map(x=>({name:x.name,title:x.title,phoneNumbers:x.phoneNumbers,websiteUri:x.websiteUri,metadata:x.metadata})),nextPageToken:data.nextPageToken||null});
+        endpoint.searchParams.set('readMask','name,title,phoneNumbers,websiteUri,metadata,serviceArea');endpoint.searchParams.set('pageSize','100');const token=pageToken(url);if(token)endpoint.searchParams.set('pageToken',token);
+        const data=await get(endpoint.href);return finish({locations:(data.locations??[]).map(x=>({name:x.name,title:x.title,phoneNumbers:x.phoneNumbers,websiteUri:x.websiteUri,metadata:x.metadata,businessType:x.serviceArea?.businessType||null,businessRegion:x.serviceArea?.regionCode||null})),nextPageToken:data.nextPageToken||null});
       }
       if(action==='status'&&request.method==='GET') {
         const location=resource(url.searchParams.get('location'),'locations');
@@ -144,8 +181,19 @@ export function createHandler(env,fetcher=fetch,clock=()=>Date.now()) {
       }
       if(action==='options'&&request.method==='POST') {
         csrf(request,session,cfg.origin);const location=resource(url.searchParams.get('location'),'locations');
-        const data=await google(`https://mybusinessverifications.googleapis.com/v1/${location}:fetchVerificationOptions`,{method:'POST',headers:{...authorization,'Content-Type':'application/json'},body:JSON.stringify({languageCode:'ar'})});
-        return finish({location,checkedAt:new Date(clock()).toISOString(),options:data.options??[]});
+        const input=await optionInput(request);
+        if(input.address) {
+          const detail=await get(`https://mybusinessbusinessinformation.googleapis.com/v1/${location}?readMask=serviceArea`);
+          if(detail.serviceArea?.businessType!=='CUSTOMER_LOCATION_ONLY')throw new AppError('CONTEXT_NOT_APPLICABLE');
+          if(detail.serviceArea.regionCode!=='SA')throw new AppError('CONTEXT_COUNTRY_NOT_SUPPORTED');
+        }
+        const settled=await Promise.allSettled(input.languages.map(languageCode=>google(`https://mybusinessverifications.googleapis.com/v1/${location}:fetchVerificationOptions`,{
+          method:'POST',headers:{...authorization,'Content-Type':'application/json'},
+          body:JSON.stringify({languageCode,...(input.address?{context:{address:input.address}}:{})})
+        })));
+        if(settled.every(result=>result.status==='rejected'))throw settled[0].reason;
+        const results=settled.map((result,i)=>result.status==='fulfilled'?{languageCode:input.languages[i],options:result.value.options??[]}:{languageCode:input.languages[i],error:result.reason.code||'GOOGLE_API_ERROR',providerStatus:result.reason.providerStatus,reason:result.reason.reason});
+        return finish({location,checkedAt:new Date(clock()).toISOString(),contextUsed:!!input.address,results,...(results.length===1?{options:results[0].options??[]}:{})});
       }
       throw new AppError('METHOD_OR_ACTION_NOT_ALLOWED',405);
     }catch(error) {

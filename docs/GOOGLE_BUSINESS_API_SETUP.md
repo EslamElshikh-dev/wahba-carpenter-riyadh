@@ -1,14 +1,14 @@
 # Google Business Profile verification monitor
 
-Prepared on 12 October 2026 for Wahba Carpenter, Riyadh.
+Prepared on 12 October 2026; updated on 13 October 2026 for Wahba Carpenter, Riyadh.
 
-## Observed readiness
+## Implementation readiness
 
-- The existing website Vercel project was inspected: Node 24, static site with a Node API function. Internal hosting identifiers are intentionally omitted.
-- No Google integration environment variables were present when inspected.
-- Google Cloud returned **Site Unavailable** in the cloud browser. Reloading once and following Google's official credentials link did not restore access.
-- Google Cloud project ID, project number, API approval and quota are **not verified**.
-- No OAuth client was created, no account permissions were granted, and no verification request was initiated.
+- Node 24, a static website and a server-side Node API function.
+- OAuth fails closed until real client credentials, a private administrator allowlist, session encryption and the explicit enable flag are configured.
+- Arabic/English comparison and optional Saudi service-business address context are implemented; only authenticated administrator sessions can use them.
+- Google project identifiers, administrator addresses, credentials, account observations and application-submission records belong in private operational records, not this public repository.
+- A manual audit, token installation, API access application or synthetic security test must never be presented as a successful live Google API result.
 
 ## Complete Google prerequisites
 
@@ -44,7 +44,17 @@ Deploy after setting configuration. Login verifies Google's RS256-signed ID toke
 - List accounts from Account Management v1.
 - List locations from Business Information v1 with a required readMask.
 - Get VoiceOfMerchantState and verification history separately. A completed verification attempt does not itself prove that quality review has finished.
-- Fetch the options Google currently returns. This POST retrieves options; it does not initiate a verification attempt.
+- Fetch the options Google currently returns in Arabic, English, or both. Results and partial errors are preserved independently for each language.
+
+## Optional service-business verification context
+
+Google documents that eligible options vary by request language and that an accurate address can enable additional options for `CUSTOMER_LOCATION_ONLY` businesses. This is a conditional capability, not a promise of instant verification or a particular method.
+
+The optional address workflow is limited to Saudi service businesses. Before forwarding an address, the server reads the selected location's current `serviceArea` and requires both `CUSTOMER_LOCATION_ONLY` and region `SA`. The administrator must explicitly confirm that the address is genuine for the selected activity, can receive mail, and may be transmitted to Google for the options request. Unknown types, non-Saudi regions, missing confirmation and malformed or oversized inputs fail closed.
+
+Addresses travel only in a bounded JSON POST body and are not placed in URLs, session cookies, public schema or repository files. The application does not log or store them in a database. The form clears when switching files or disabling address use. Google's responses are private and uncached; Google itself processes the supplied data under its policies.
+
+The interface displays only methods actually returned by Google. The function calls `fetchVerificationOptions`; it never initiates `verify`, requests a code, sends a postcard or completes a verification. `AUTO` and `VETTED_PARTNER` are displayed only when actually returned. A live comparison and address-context test remains blocked until OAuth credentials, API access and a real confirmed address are available.
 
 The tool does not expose endpoints to create profiles, edit business details, initiate verification, submit PINs, transfer ownership, or delete data. Location resources come from the API response and must not be inferred from the Business Profile manager identifier or store code.
 
@@ -61,5 +71,9 @@ Run `node --test tests/gbp-api.test.mjs`, `npm run build`, and `npm run check`. 
 - https://developers.google.com/my-business/content/implement-oauth
 - https://developers.google.com/my-business/reference/verifications/rest/v1/locations/getVoiceOfMerchantState
 - https://developers.google.com/my-business/reference/verifications/rest/v1/locations/fetchVerificationOptions
+- https://developers.google.com/my-business/reference/verifications/rest/v1/ServiceBusinessContext
+- https://developers.google.com/my-business/reference/businessinformation/rest/v1/accounts.locations
+- https://developers.google.com/site-verification/v1/getting_started
+- https://support.google.com/business/workflow/16726127
 - https://developers.google.com/identity/openid-connect/openid-connect
 - https://vercel.com/docs/functions/functions-api-reference

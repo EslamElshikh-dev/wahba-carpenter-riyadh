@@ -10,8 +10,8 @@
   <link rel="canonical" href="https://wahba-carpenter-riyadh.vercel.app/admin/verification">
   <title>متابعة التحقق | إدارة وهبة النجار</title>
   <link rel="icon" href="/assets/icon-192.png">
-  <link rel="stylesheet" href="/assets/verification.css">
-  <script src="/assets/verification.js" defer></script>
+  <link rel="stylesheet" href="/assets/verification.css?v=20261013-options">
+  <script src="/assets/verification.js?v=20261013-options" defer></script>
 </head>
 <body>
   <a class="skip" href="#main">انتقل إلى المحتوى</a>
@@ -23,7 +23,21 @@
       <section class="card connection"><div class="card-top"><h2>ربط حساب الإدارة</h2><span class="badge" id="connection-badge">جارٍ الفحص</span></div><p id="connection-copy">تظهر بيانات Google بعد تسجيل الدخول وإتمام الإعداد المطلوب.</p><div class="actions"><button id="login" class="primary" disabled>تسجيل الدخول بحساب Google <span aria-hidden="true">↗</span></button><button id="logout" class="secondary" hidden>إنهاء جلسة المتابعة</button></div><p class="fine">تطلب Google صلاحية إدارة الملفات التجارية. تستخدم هذه الواجهة القراءة والمتابعة، وتتحقق من بريد حساب الإدارة قبل إظهار البيانات. تنتهي الجلسة خلال ساعة كحد أقصى.</p></section>
       <section class="card" id="selector" hidden><div class="card-top"><h2>اختيار الملف</h2><button id="reload-accounts" class="secondary">تحديث الحسابات</button></div><label for="account">حساب الملفات التجارية</label><select id="account"><option value="">اختر الحساب</option></select><button id="more-accounts" class="text-button" hidden>عرض حسابات إضافية</button><label for="location">الملف التجاري</label><select id="location"><option value="">اختر الملف</option></select><button id="more-locations" class="text-button" hidden>عرض ملفات إضافية</button><p class="fine">اختر الملف الذي يطابق اسم النشاط ورقمه. معرّف المورد هنا يأتي مباشرةً من Google API.</p></section>
       <section class="card status-card"><div class="card-top"><h2>الحالة لدى Google</h2><button id="refresh-status" class="secondary" disabled>تحديث الحالة</button></div><div class="state-line"><span class="status-dot" id="status-dot"></span><div><h3 id="status-title">لم تُقرأ الحالة بعد</h3><p id="status-copy">اختر ملفًا من حساب الإدارة لعرض الحالة الفعلية.</p></div></div><div class="facts"><div><span>سلطة الملف لدى Google</span><strong id="authority">—</strong></div><div><span>حالة الإدارة والنشر</span><strong id="voice">—</strong></div><div><span>آخر قراءة ناجحة</span><strong id="checked">—</strong></div></div><details><summary>فهم الحالة</summary><p>قد تُظهر Google أن سلطة الملف مكتسبة بينما مراجعة جودة الملف مستمرة. تُقرأ حالة الملف الحالية وسجل محاولات التحقق كلٌّ على حدة.</p></details></section>
-      <section class="card"><div class="card-top"><h2>طرق التحقق المتاحة</h2><button id="fetch-options" class="secondary" disabled>قراءة الخيارات</button></div><div id="options" class="empty">ستظهر الطرق التي ترجعها Google لهذا الملف، عند طلب قراءتها.</div></section>
+      <section class="card options-card"><div class="card-top"><h2>فحص خيارات التحقق</h2><span class="badge neutral">قراءة من Google</span></div><p>قارن الخيارات بحسب لغة الطلب، وأضف عنوان تحقق عند أهلية نشاط منطقة الخدمة.</p>
+        <form id="options-form" autocomplete="off">
+          <fieldset id="options-settings" disabled><legend class="sr-only">إعدادات قراءة خيارات التحقق</legend>
+            <label for="option-language">لغة فحص الخيارات</label><select id="option-language"><option value="compare">مقارنة العربية والإنجليزية</option><option value="ar">العربية</option><option value="en">الإنجليزية</option></select>
+            <label class="check-row"><input type="checkbox" id="use-address" disabled><span>إضافة عنوان تحقق لنشاط منطقة خدمة</span></label><p class="fine context-note" id="context-note">تتاح إضافة العنوان بعد تسجيل الدخول، واختيار ملف مؤهل في السعودية.</p>
+            <fieldset id="verification-address" hidden disabled><legend>عنوان التحقق الخاص</legend><p class="fine">يُرسل هذا العنوان إلى Google لقراءة الخيارات. لا يُضاف إلى عنوان الملف العام أو صفحات الموقع، ولا يُحفظ في قاعدة بيانات الموقع. قد يساعد العنوان الدقيق في إتاحة خيارات إضافية؛ النتيجة تحددها Google.</p>
+              <label for="verification-street">رقم المبنى واسم الشارع وتفاصيل العنوان</label><textarea id="verification-street" rows="3" maxlength="602" required placeholder="اكتب عنوان التحقق الحقيقي؛ سطر لكل جزء" autocomplete="off"></textarea>
+              <div class="address-grid"><div><label for="verification-region">المنطقة الإدارية</label><input id="verification-region" maxlength="120" required autocomplete="off"></div><div><label for="verification-city">المدينة</label><input id="verification-city" maxlength="120" required autocomplete="off"></div></div>
+              <label for="verification-postal">الرمز البريدي (اختياري)</label><input id="verification-postal" dir="ltr" inputmode="numeric" maxlength="5" pattern="[0-9]{5}" autocomplete="off"><p class="fine">الدولة: المملكة العربية السعودية.</p>
+              <label class="check-row"><input type="checkbox" id="address-confirmed" required><span>أؤكد أن هذا عنوان تحقق النشاط المحدد داخل السعودية، ويمكنني أو ممثل النشاط استقبال المراسلات عليه، وأوافق على إرساله إلى Google لقراءة الخيارات.</span></label>
+            </fieldset>
+            <button id="fetch-options" type="submit" class="secondary" disabled>قراءة الخيارات ومقارنتها</button>
+          </fieldset>
+        </form><p class="fine">قراءة الخيارات لا تبدأ محاولة تحقق، ولا تطلب رمزًا أو ترسل بطاقة بريدية.</p><div id="options" class="empty">ستظهر النتائج الفعلية لكل لغة بعد تسجيل الدخول وقراءة الخيارات.</div>
+      </section>
       <section class="card"><div class="card-top"><h2>سجل محاولات التحقق</h2><span class="badge neutral" id="history-count">لم يُقرأ بعد</span></div><div id="history" class="empty">تظهر المحاولات والتواريخ والنتائج كما ترجعها Google.</div></section>
     </section><aside>
       <section class="card target"><span class="eyebrow">النشاط المستهدف</span><h2>وهبة النجار</h2><p>نجار · نطاق خدمة الرياض</p><dl><dt>رقم الاتصال</dt><dd dir="ltr">+966 59 508 0326</dd><dt>معرّف لوحة الملف التجاري</dt><dd dir="ltr">1310426400263731431</dd></dl><p class="fine">المعلومات التعريفية أعلاه من بيانات النشاط. حالة Google تُعرض فقط بعد قراءة API ناجحة.</p></section>
