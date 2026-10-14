@@ -59,6 +59,18 @@ test('approval loads one container and sends only allowed, sanitized event field
  assert.equal(JSON.stringify(f.window.dataLayer).includes('private@example.com'),false);
  for(const field of ['phone','district','details','link_url'])assert.equal(field in event,false);
 });
+test('link interactions cannot inherit a previous form source or service in the data-layer model',()=>{
+ const f=fixture();f.grant.click();
+ f.window.wahbaAnalytics.track('quote_prepared',{service:'خزائن ودواليب',source:'brief_form'});
+ const model=Object.assign({},...f.window.dataLayer);
+ assert.equal(model.service,'خزائن ودواليب');
+ f.window.wahbaAnalytics.track('map_click');
+ Object.assign(model,f.window.dataLayer.at(-1));
+ assert.equal(model.source,'link');assert.equal(model.service,undefined);
+ f.window.wahbaAnalytics.track('whatsapp_click',{source:'private text',service:'private text'});
+ Object.assign(model,f.window.dataLayer.at(-1));
+ assert.equal(model.source,'link');assert.equal(model.service,undefined);
+});
 test('a restored current approval loads without a repeated prompt',()=>{
  const f=fixture({saved:{version:1,choice:'granted',savedAt:now-1000}});
  assert.equal(f.scripts.length,1);assert.equal(f.banner.hidden,true);

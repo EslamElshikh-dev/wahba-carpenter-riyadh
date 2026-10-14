@@ -76,9 +76,12 @@
   window.wahbaAnalytics = Object.freeze({
     track(name, detail = {}) {
       if (choice !== 'granted' || !events.has(name)) return false;
-      const parameters = { event: name, ...pageDetails() };
-      if (['brief_form', 'link'].includes(detail.source)) parameters.source = detail.source;
-      if (services.has(detail.service)) parameters.service = detail.service;
+      const parameters = {
+        event: name,
+        ...pageDetails(),
+        source: ['brief_form', 'link'].includes(detail.source) ? detail.source : 'link',
+        service: services.has(detail.service) ? detail.service : undefined
+      };
       push(parameters);
       return true;
     },
