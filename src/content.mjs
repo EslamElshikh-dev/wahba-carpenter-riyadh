@@ -15,7 +15,7 @@ export const brand = {
   hoursText: 'السبت إلى الخميس: 9 صباحًا – 9 مساءً',
   closedText: 'الجمعة: مغلق',
   serviceHours: [{days:['Saturday','Sunday','Monday','Tuesday','Wednesday','Thursday'],opens:'09:00',closes:'21:00'}],
-  updatedAt: '2026-10-12',
+  updatedAt: '2026-10-14',
 };
 
 export const services = [

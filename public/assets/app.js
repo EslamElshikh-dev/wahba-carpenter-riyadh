@@ -30,7 +30,7 @@
     dialog.addEventListener('close',()=>{document.body.style.overflow='';returnFocus?.focus();});
   }
   const form=q('[data-brief]');
-  const event=(name,detail={})=>{window.dataLayer=window.dataLayer||[];window.dataLayer.push({event:name,...detail});};
+  const event=(name,detail={})=>window.wahbaAnalytics?.track(name,detail);
   qa('[data-event]').forEach(a=>a.addEventListener('click',()=>event(a.dataset.event,{page_path:location.pathname})));
   if(form){
     qa('input[name="mood"]',form).forEach(r=>r.addEventListener('change',()=>{const img=q('.mood-image'), label=q('.mood-label');if(img){img.src=r.dataset.image;img.removeAttribute('srcset');img.alt=`تصور تصميم بطابع ${r.value}`;}if(label)label.textContent=`طابع ${r.value}`;}));
@@ -38,7 +38,7 @@
       e.preventDefault();if(!form.reportValidity())return;
       const d=new FormData(form);const text=['حياكم الله، عندي طلب لدى وهبة النجار في الرياض.',`الخدمة: ${d.get('service')}`,`الطابع: ${d.get('mood')}`,`الحي: ${String(d.get('district')).trim()}`,d.get('dimensions')?`المقاسات التقريبية: ${String(d.get('dimensions')).trim()}`:'',d.get('details')?`التفاصيل: ${String(d.get('details')).trim()}`:'','سأرفق صور المكان والفكرة هنا.'].filter(Boolean).join('\n');
       const link=document.createElement('a');link.href=`https://wa.me/966595080326?text=${encodeURIComponent(text)}`;link.target='_blank';link.rel='noopener noreferrer';document.body.appendChild(link);link.click();link.remove();
-      event('quote_request',{page_path:location.pathname,service:d.get('service')});event('whatsapp_click',{page_path:location.pathname,source:'brief_form'});
+      event('quote_prepared',{page_path:location.pathname,service:d.get('service')});event('whatsapp_click',{page_path:location.pathname,source:'brief_form'});
       q('.form-status',form).textContent='تم تجهيز رسالة الطلب. أكمل إرسالها في واتساب وأرفق صور المساحة.';
     });
   }
