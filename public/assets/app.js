@@ -38,7 +38,7 @@
       e.preventDefault();if(!form.reportValidity())return;
       const d=new FormData(form);const text=['حياكم الله، عندي طلب لدى وهبة النجار في الرياض.',`الخدمة: ${d.get('service')}`,`الطابع: ${d.get('mood')}`,`الحي: ${String(d.get('district')).trim()}`,d.get('dimensions')?`المقاسات التقريبية: ${String(d.get('dimensions')).trim()}`:'',d.get('details')?`التفاصيل: ${String(d.get('details')).trim()}`:'','سأرفق صور المكان والفكرة هنا.'].filter(Boolean).join('\n');
       const link=document.createElement('a');link.href=`https://wa.me/966595080326?text=${encodeURIComponent(text)}`;link.target='_blank';link.rel='noopener noreferrer';document.body.appendChild(link);link.click();link.remove();
-      event('quote_prepared',{page_path:location.pathname,service:d.get('service')});event('whatsapp_click',{page_path:location.pathname,source:'brief_form'});
+      event('quote_prepared',{page_path:location.pathname,source:'brief_form',service:d.get('service')});event('whatsapp_click',{page_path:location.pathname,source:'brief_form',service:d.get('service')});
       q('.form-status',form).textContent='تم تجهيز رسالة الطلب. أكمل إرسالها في واتساب وأرفق صور المساحة.';
     });
   }
