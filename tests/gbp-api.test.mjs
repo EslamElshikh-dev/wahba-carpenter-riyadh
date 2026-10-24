@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash,createDecipheriv,generateKeyPairSync,sign} from 'node:crypto';
 import {createHandler} from '../src/gbp-api.mjs';
+import {DAILY_METRICS,performanceRange} from '../src/gbp-performance.mjs';
 
 // Explicitly synthetic security fixtures. No Google accounts or live credentials.
 const origin='https://wahba-carpenter-riyadh.vercel.app';
@@ -30,6 +31,11 @@ function mockProvider(nonce,overrides={},failVoice=false,corruptSignature=false,
       return Response.json({access_token:'SYNTHETIC_ACCESS_TOKEN',token_type:'Bearer',expires_in:3600,scope,id_token:signed});
     }
     if(url==='https://www.googleapis.com/oauth2/v3/certs')return Response.json({keys:[jwk]});
+    if(new URL(url).hostname==='businessprofileperformance.googleapis.com'){
+      if(behavior.performanceError)return Response.json({error:{message:'Never echo SYNTHETIC_ACCESS_TOKEN',details:[{reason:'SERVICE_DISABLED'}]}},{status:behavior.performanceError});
+      if(url.includes(':fetchMultiDailyMetricsTimeSeries'))return Response.json(behavior.dailyResponse??dailyFixture());
+      return Response.json(behavior.keywordResponse??{searchKeywordsCounts:[{searchKeyword:'synthetic exact zero',insightsValue:{value:'0'}},{searchKeyword:'synthetic bound',insightsValue:{threshold:'15'}}],nextPageToken:'synthetic-next'});
+    }
     if(url.includes('/accounts')&&!url.includes('/locations'))return Response.json({accounts:[{name:'accounts/test-account',accountName:'Synthetic test account'}]});
     if(url.startsWith('https://mybusinessbusinessinformation.googleapis.com/v1/locations/'))return Response.json({name:'locations/test-location',serviceArea:{businessType:behavior.businessType??'CUSTOMER_LOCATION_ONLY',regionCode:behavior.regionCode??'SA'}});
     if(url.startsWith('https://mybusinessbusinessinformation.googleapis.com/v1/accounts/'))return Response.json({locations:[{name:'locations/test-location',title:'Synthetic service business',serviceArea:{businessType:'CUSTOMER_LOCATION_ONLY',regionCode:'SA'}}]});
@@ -58,7 +64,7 @@ test('unconfigured endpoint fails closed and sends no provider request',async()=
 });
 test('anonymous requests cannot read business accounts or locations',async()=>{
   let calls=0;const handler=createHandler(env,async()=>{calls++;throw 0;},()=>instant);
-  for(const action of ['accounts','locations','status','options']){const r=await handler(new Request(`${origin}/api/gbp?action=${action}`));assert.equal(r.status,401);assert.equal((await r.json()).error,'SIGN_IN_REQUIRED');}
+  for(const action of ['accounts','locations','status','options','performance','keywords']){const r=await handler(new Request(`${origin}/api/gbp?action=${action}`));assert.equal(r.status,401);assert.equal((await r.json()).error,'SIGN_IN_REQUIRED');}
   assert.equal(calls,0);
 });
 test('login binds OAuth to an encrypted browser cookie and PKCE',async()=>{
@@ -158,4 +164,56 @@ test('invalid languages, malformed addresses, wrong MIME and oversized POST bodi
 test('location lists expose eligibility without private addresses or extra service-area details',async()=>{
   const x=await signedSession();const r=await x.handler(new Request(`${origin}/api/gbp?action=locations&account=accounts/test-account`,{headers:{cookie:x.jar}}));assert.equal(r.status,200);const d=await r.json();
   assert.equal(d.locations[0].businessType,'CUSTOMER_LOCATION_ONLY');assert.equal(d.locations[0].businessRegion,'SA');assert.equal(d.locations[0].serviceArea,undefined);assert.equal(d.locations[0].storefrontAddress,undefined);
+});
+
+function dailyFixture(){
+  return {multiDailyMetricTimeSeries:[{dailyMetricTimeSeries:DAILY_METRICS.map((dailyMetric,i)=>({dailyMetric,timeSeries:{datedValues:[{date:{year:2026,month:10,day:11},...(i===7?{}:{value:String(i+1)})}]}}))}]};
+}
+const performanceRequest=(x,action='performance',params='')=>x.handler(new Request(`${origin}/api/gbp?action=${action}&location=locations/test-location${params}`,{headers:{cookie:x.jar}}));
+test('Performance uses exactly eight GET metrics and a server-owned 90-day Riyadh range',async()=>{
+  const x=await signedSession(),before=x.provider.calls.length,r=await performanceRequest(x),data=await r.json();
+  assert.equal(r.status,200);assert.equal(x.provider.calls.length,before+1);
+  const call=x.provider.calls.at(-1),url=new URL(call.url);assert.equal(call.method,'GET');assert.equal(call.body,undefined);
+  assert.equal(url.hostname,'businessprofileperformance.googleapis.com');assert(url.pathname.endsWith(':fetchMultiDailyMetricsTimeSeries'));
+  assert.deepEqual(url.searchParams.getAll('dailyMetrics'),DAILY_METRICS);
+  assert.equal(data.rangeStart,'2026-07-14');assert.equal(data.rangeEnd,'2026-10-11');
+  assert.equal(url.searchParams.get('dailyRange.start_date.year'),'2026');assert.equal(url.searchParams.get('dailyRange.start_date.month'),'7');assert.equal(url.searchParams.get('dailyRange.start_date.day'),'14');
+  assert.equal(url.searchParams.get('dailyRange.end_date.day'),'11');assert.equal(data.syncedAt,new Date(instant).toISOString());
+  assert.equal(data.coverage.reportingDays,1,'absent days are not manufactured');assert.equal(data.coverage.summary.BUSINESS_BOOKINGS,0,'only an existing point with no value means zero');
+  assert.deepEqual(data.dailyResponse,dailyFixture());assert(!JSON.stringify(data).includes('SYNTHETIC_ACCESS_TOKEN'));assert(!JSON.stringify(data).includes(env.GBP_GOOGLE_CLIENT_SECRET));
+  assert.equal(r.headers.get('cache-control'),'private, no-store');assert.equal(r.headers.get('vercel-cdn-cache-control'),'no-store');
+});
+test('Riyadh range handles midnight, year transitions and leap days',()=>{
+  assert.deepEqual(performanceRange(Date.parse('2025-12-31T21:30:00Z')),{rangeStart:'2025-10-03',rangeEnd:'2025-12-31'});
+  assert.equal(performanceRange(Date.parse('2024-03-01T00:00:00Z')).rangeEnd,'2024-02-29');
+});
+test('monthly export preserves exact zero, threshold and page cursor without summing them',async()=>{
+  const x=await signedSession(),r=await performanceRequest(x,'keywords','&reportMonth=2026-09-01&pageToken='+encodeURIComponent('cursor/+=? &'));
+  assert.equal(r.status,200);const data=await r.json(),call=x.provider.calls.at(-1),url=new URL(call.url);
+  assert.equal(call.method,'GET');assert.equal(url.searchParams.get('monthlyRange.start_month.year'),'2026');assert.equal(url.searchParams.get('monthlyRange.end_month.month'),'9');
+  assert.equal(url.searchParams.get('pageSize'),'100');assert.equal(url.searchParams.get('pageToken'),'cursor/+=? &');
+  assert.equal(data.reportMonth,'2026-09-01');assert.equal(data.rows,2);assert.equal(data.keywordResponse.searchKeywordsCounts[0].insightsValue.value,'0');
+  assert.equal(data.keywordResponse.searchKeywordsCounts[1].insightsValue.threshold,'15');assert.equal(data.keywordResponse.nextPageToken,'synthetic-next');
+  assert.equal(data.locationId,'locations/test-location');assert(!JSON.stringify(data).includes('SYNTHETIC_ACCESS_TOKEN'));
+});
+test('invalid months, path injection, huge cursors and mutation methods never reach Google',async()=>{
+  const x=await signedSession(),before=x.provider.calls.length;
+  for(const month of ['', '2026-13-01','2026-06-01','2026-11-01','2026-09-02','https://evil.test'])assert.equal((await performanceRequest(x,'keywords','&reportMonth='+encodeURIComponent(month))).status,400);
+  assert.equal((await performanceRequest(x,'keywords','&reportMonth=2026-09-01&pageToken='+'x'.repeat(2049))).status,400);
+  const bad=new Request(`${origin}/api/gbp?action=performance&location=locations%2F123%2F..%2Fother`,{headers:{cookie:x.jar}});assert.equal((await x.handler(bad)).status,400);
+  for(const action of ['performance','keywords'])assert.equal((await x.handler(new Request(`${origin}/api/gbp?action=${action}&location=locations/test-location`,{method:'POST',headers:{cookie:x.jar}}))).status,405);
+  assert.equal(x.provider.calls.length,before);
+});
+test('partial, duplicate, null and invalid daily observations fail instead of becoming zeros',async()=>{
+  const edits=[s=>s.pop(),s=>s.push(s[0]),s=>s[0].timeSeries.datedValues=[],s=>s[0].timeSeries.datedValues[0].value=null,s=>s[0].timeSeries.datedValues[0].value='-1',s=>s[0].timeSeries.datedValues[0].value='9007199254740992',s=>s[0].timeSeries.datedValues[0].date.day=99,s=>s[0].timeSeries.datedValues.push(s[0].timeSeries.datedValues[0]),s=>s[0].dailySubEntityType={dayOfWeek:'MONDAY'}];
+  for(const edit of edits){const dailyResponse=dailyFixture();edit(dailyResponse.multiDailyMetricTimeSeries[0].dailyMetricTimeSeries);const x=await signedSession({},false,false,{dailyResponse});const r=await performanceRequest(x);assert.equal(r.status,502);assert.equal((await r.json()).error,'GOOGLE_INCOMPLETE_PERFORMANCE');}
+});
+test('provider failures retain status categories without leaking payloads or exporting zeros',async()=>{
+  for(const status of [401,403,429,503]){const x=await signedSession({},false,false,{performanceError:status}),r=await performanceRequest(x),data=await r.json();assert.equal(r.status,502);assert.equal(data.providerStatus,status);assert.equal(data.reason,'SERVICE_DISABLED');assert.equal(data.dailyResponse,undefined);assert(!JSON.stringify(data).includes('SYNTHETIC_ACCESS_TOKEN'));}
+});
+test('empty keyword pages remain empty; ambiguous counts and error-shaped bodies are rejected',async()=>{
+  const x=await signedSession({},false,false,{keywordResponse:{}}),r=await performanceRequest(x,'keywords','&reportMonth=2026-09-01');assert.equal(r.status,200);assert.equal((await r.json()).rows,0);
+  for(const keywordResponse of [{searchKeywordsCounts:null},{error:{code:403}},{searchKeywordsCounts:[{searchKeyword:'bad',insightsValue:{value:'0',threshold:'15'}}]},{searchKeywordsCounts:[{searchKeyword:'bad',insightsValue:{threshold:'0'}}]},{searchKeywordsCounts:[{searchKeyword:'bad',insightsValue:{value:null}}]}]){
+    const y=await signedSession({},false,false,{keywordResponse}),bad=await performanceRequest(y,'keywords','&reportMonth=2026-09-01');assert.equal(bad.status,502);assert.equal((await bad.json()).error,'GOOGLE_INCOMPLETE_PERFORMANCE');
+  }
 });
