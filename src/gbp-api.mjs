@@ -1,4 +1,5 @@
 import {randomBytes, createHash, createCipheriv, createDecipheriv, createPublicKey, verify, timingSafeEqual} from 'node:crypto';
+import {DAILY_METRICS,performanceRange,keywordMonth,summarizeDaily,keywordRows} from './gbp-performance.mjs';
 
 const SESSION='__Host-wahba_gbp';
 const FLOW='__Host-wahba_gbp_flow';
@@ -7,7 +8,7 @@ const ORIGIN='https://wahba-carpenter-riyadh.vercel.app';
 const AUTH='https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN='https://oauth2.googleapis.com/token';
 const KEYS='https://www.googleapis.com/oauth2/v3/certs';
-const GOOGLE_HOSTS=new Set(['oauth2.googleapis.com','www.googleapis.com','mybusinessaccountmanagement.googleapis.com','mybusinessbusinessinformation.googleapis.com','mybusinessverifications.googleapis.com']);
+const GOOGLE_HOSTS=new Set(['oauth2.googleapis.com','www.googleapis.com','mybusinessaccountmanagement.googleapis.com','mybusinessbusinessinformation.googleapis.com','mybusinessverifications.googleapis.com','businessprofileperformance.googleapis.com']);
 const required=['GBP_GOOGLE_CLIENT_ID','GBP_GOOGLE_CLIENT_SECRET','GBP_SESSION_SECRET','GBP_ADMIN_EMAILS','GBP_OAUTH_ENABLED'];
 
 class AppError extends Error {
@@ -178,6 +179,30 @@ export function createHandler(env,fetcher=fetch,clock=()=>Date.now()) {
         const unpack=r=>r.status==='fulfilled'?{data:r.value}:{error:r.reason.code||'GOOGLE_API_ERROR',providerStatus:r.reason.providerStatus,reason:r.reason.reason};
         if(settled.every(r=>r.status==='rejected'))throw settled[0].reason;
         return finish({location,checkedAt:new Date(clock()).toISOString(),voice:unpack(settled[0]),history:unpack(settled[1])});
+      }
+      if((action==='performance'||action==='keywords')&&request.method==='GET') {
+        const location=resource(url.searchParams.get('location'),'locations');
+        const range=performanceRange(now),syncedAt=new Date(now).toISOString();
+        if(action==='performance') {
+          const endpoint=new URL(`https://businessprofileperformance.googleapis.com/v1/${location}:fetchMultiDailyMetricsTimeSeries`);
+          for(const metric of DAILY_METRICS)endpoint.searchParams.append('dailyMetrics',metric);
+          for(const [name,iso]of [['start_date',range.rangeStart],['end_date',range.rangeEnd]]) {
+            for(const [i,key]of ['year','month','day'].entries())endpoint.searchParams.set(`dailyRange.${name}.${key}`,String(Number(iso.split('-')[i])));
+          }
+          const data=await get(endpoint.href);let coverage;
+          try{coverage=summarizeDaily(data,range);}catch{throw new AppError('GOOGLE_INCOMPLETE_PERFORMANCE',502);}
+          return finish({mode:'business_profile_google_sync',locationId:location,syncedAt,...range,coverage,dailyResponse:data});
+        }
+        let month;try{month=keywordMonth(url.searchParams.get('reportMonth'),range);}catch{throw new AppError('INVALID_PERFORMANCE_MONTH');}
+        const token=pageToken(url),endpoint=new URL(`https://businessprofileperformance.googleapis.com/v1/${location}/searchkeywords/impressions/monthly`);
+        for(const name of ['start_month','end_month']) {
+          endpoint.searchParams.set(`monthlyRange.${name}.year`,String(Number(month.slice(0,4))));
+          endpoint.searchParams.set(`monthlyRange.${name}.month`,String(Number(month.slice(5,7))));
+        }
+        endpoint.searchParams.set('pageSize','100');if(token)endpoint.searchParams.set('pageToken',token);
+        const data=await get(endpoint.href);let rows;
+        try{rows=keywordRows(data);}catch{throw new AppError('GOOGLE_INCOMPLETE_PERFORMANCE',502);}
+        return finish({mode:'business_profile_google_sync',locationId:location,syncedAt,reportMonth:month,rows,keywordResponse:data});
       }
       if(action==='options'&&request.method==='POST') {
         csrf(request,session,cfg.origin);const location=resource(url.searchParams.get('location'),'locations');

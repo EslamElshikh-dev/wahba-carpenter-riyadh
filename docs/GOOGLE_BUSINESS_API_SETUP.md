@@ -77,3 +77,17 @@ Run `node --test tests/gbp-api.test.mjs`, `npm run build`, and `npm run check`. 
 - https://support.google.com/business/workflow/16726127
 - https://developers.google.com/identity/openid-connect/openid-connect
 - https://vercel.com/docs/functions/functions-api-reference
+
+## قراءة Performance دون مزامنة تلقائية
+
+تتيح صفحة الإدارة، بعد تسجيل الدخول واختيار الملف، قراءة آخر ٩٠ يومًا حتى أمس بتوقيت الرياض. `GET /api/gbp?action=performance&location=locations/ID` يطلب المقاييس الثمانية المحددة فقط من Google، ويعيد الرد الأصلي مع وقت بدء الجلب وتغطية الأيام. لا يُعدّل الملف التجاري، ولا يعرض رموز الوصول، ولا يحفظ البيانات في Supabase.
+
+`GET /api/gbp?action=keywords&location=locations/ID&reportMonth=YYYY-MM-01` يقرأ شهرًا واحدًا متداخلًا مع الفترة نفسها. يدعم `pageToken` المحدود و`pageSize=100`. تطلب الواجهة كل شهر منفردًا وتوقف الصفحات المتكررة والقراءة غير المحدودة. أخطاء الحصة أو الجلسة لا تتحول إلى أصفار أو نجاح كامل.
+
+المساران يستخدمان جلسة الإدارة المشفرة الحالية، وقائمة البريد المصرح به، ونطاق `business.manage` نفسه. الطلب المجهول مرفوض، والردود خاصة ولا تُخزن في CDN. لا توجد مفاتيح جديدة أو اتصال Make/Windsor أو صلاحيات OAuth إضافية لهذه الميزة.
+
+يمكن تنزيل الردود من الزر بعد قراءتها. الملف يحتوي `daily` و`keywordPages` و`keywordComplete` و`keywordErrors`؛ كل استجابة تحتفظ بـ`syncedAt` الأصلي. النقطة المؤرخة التي يحذف منها Google `value` تعني صفرًا؛ غياب يوم أو مقياس، أو قيمة `null`، لا يعني صفرًا. حدود كلمات البحث تظل حدودًا، ولا تُجمع مع الأعداد الدقيقة. امسح النتائج والتنزيل السابق عند تبديل الملف.
+
+التنزيل ليس إثبات حفظ في لوحة أخرى. تحقق من معرّف الملف والردود الخام باستخدام محوّل اللوحة قبل أي استيراد؛ لا تستورد أخطاء المصدر أو أصفارًا توضيحية. لم تُفعّل أي جدولة أو كتابة خارج Google بواسطة هذه الإضافة.
+
+مراجع: [الأداء اليومي](https://developers.google.com/my-business/reference/performance/rest/v1/locations/fetchMultiDailyMetricsTimeSeries)، [القيم المؤرخة](https://developers.google.com/my-business/reference/performance/rest/v1/TimeSeries)، [كلمات البحث الشهرية](https://developers.google.com/my-business/reference/performance/rest/v1/locations.searchkeywords.impressions.monthly/list).

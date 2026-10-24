@@ -5,6 +5,7 @@
   "description": "وهبة النجار — النجارة والخزائن والديكورات الخشبية في الرياض",
   "type": "module",
   "scripts": {
+    "test": "node --test tests/*.test.mjs",
     "build": "node scripts/build.mjs",
     "check": "node scripts/check.mjs"
   },

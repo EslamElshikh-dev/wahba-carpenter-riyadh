@@ -1,9 +1,10 @@
 const $=id=>document.getElementById(id);
-let session=null,accountPage=null,locationPage=null,epoch=0;
+let session=null,accountPage=null,locationPage=null,epoch=0,performancePacket=null,performanceBusy=false;
 const methods={ADDRESS:'بطاقة بريدية',MAIL:'بطاقة بريدية',EMAIL:'بريد إلكتروني',PHONE_CALL:'مكالمة هاتفية',SMS:'رسالة نصية',AUTO:'تحقق تلقائي',VETTED_PARTNER:'شريك معتمد',VIDEO:'فيديو',LIVE_VIDEO:'مكالمة فيديو'};
 const states={PENDING:'المحاولة قيد المعالجة',COMPLETED:'اكتملت محاولة التحقق',FAILED:'لم تنجح المحاولة',VERIFICATION_STATE_UNSPECIFIED:'الحالة غير محددة'};
 const errors={SETUP_REQUIRED:'إعداد Google Cloud وOAuth لم يكتمل بعد.',SIGN_IN_REQUIRED:'سجّل الدخول بحساب الإدارة لقراءة بيانات Google.',ADMIN_ACCOUNT_REQUIRED:'هذا الحساب غير مصرح له باستخدام واجهة الإدارة.',CSRF_REJECTED:'تعذر تأكيد الطلب. حدّث الصفحة وسجّل الدخول من جديد.',ORIGIN_REJECTED:'الربط متاح من عنوان الموقع المعتمد فقط.',GOOGLE_UNREACHABLE:'تعذر الاتصال بخدمة Google الآن. أعد المحاولة لاحقًا.',GOOGLE_INVALID_RESPONSE:'وصل رد غير قابل للقراءة من Google.',IDENTITY_REJECTED:'تعذر تأكيد هوية حساب Google.',OAUTH_STATE_REJECTED:'انتهت جلسة تسجيل الدخول أو تعذر تأكيدها.',BUSINESS_SCOPE_REQUIRED:'لم تُمنح صلاحية الملفات التجارية المطلوبة.',INVALID_RESOURCE:'معرّف الملف غير صالح. اختر الملف من القائمة.',METHOD_OR_ACTION_NOT_ALLOWED:'هذه العملية غير متاحة في واجهة المتابعة.'};
 Object.assign(errors,{INVALID_OPTION_REQUEST:'طلب فحص الخيارات غير صالح. راجع الحقول وأعد القراءة.',UNSUPPORTED_LANGUAGE:'اختر العربية أو الإنجليزية أو المقارنة بينهما.',OPTION_REQUEST_TOO_LARGE:'بيانات الطلب طويلة جدًا. اختصر تفاصيل العنوان.',ADDRESS_CONFIRMATION_REQUIRED:'أكد صحة عنوان النشاط والموافقة على إرساله إلى Google.',INVALID_VERIFICATION_ADDRESS:'راجع عنوان التحقق والمدينة والمنطقة والرمز البريدي.',CONTEXT_NOT_APPLICABLE:'نوع الملف الذي أعادته Google لا يتيح استخدام سياق عنوان منطقة الخدمة.',CONTEXT_COUNTRY_NOT_SUPPORTED:'لم تؤكد Google أن بلد نشاط منطقة الخدمة هو السعودية. اقرأ الخيارات دون عنوان.'});
+Object.assign(errors,{INVALID_PERFORMANCE_MONTH:'شهر كلمات البحث خارج نطاق آخر ٩٠ يومًا.',GOOGLE_INCOMPLETE_PERFORMANCE:'استجابة الأداء غير مكتملة أو غير صالحة؛ لم تُستبدل البيانات الغائبة بأصفار.'});
 const time=value=>{try{return new Intl.DateTimeFormat('ar-SA-u-ca-gregory',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Riyadh'}).format(new Date(value));}catch{return 'غير متاح';}};
 function notify(text,kind=''){ $('notice').textContent=text;$('notice').className=`notice ${kind}`; }
 function errorText(data){if(data.error==='GOOGLE_API_ERROR'){const detail=data.reason?` (${data.reason})`:'';return `أعادت Google خطأ ${data.providerStatus||''}${detail}. راجع صلاحيات الحساب وتفعيل الخدمة وحصة المشروع؛ الخطأ وحده لا يثبت رفض التحقق.`;}return errors[data.error]||'تعذر إكمال القراءة. أعد المحاولة لاحقًا.';}
@@ -12,13 +13,14 @@ async function api(action,params={},method='GET',body) {
   const headers=method==='POST'?{'X-Gbp-Csrf':session?.csrf||''}:{};
   if(body!==undefined)headers['Content-Type']='application/json';
   const res=await fetch(url,{method,headers,...(body!==undefined?{body:JSON.stringify(body)}:{}),credentials:'same-origin',cache:'no-store'});let data;try{data=await res.json();}catch{throw new Error('تعذر قراءة خدمة المتابعة.');}
-  if(!res.ok){const e=new Error(errorText(data));e.status=res.status;throw e;}return data;
+  if(!res.ok){const e=new Error(errorText(data));e.status=res.status;e.providerStatus=data.providerStatus;throw e;}return data;
 }
 function node(tag,text,className){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(className)n.className=className;if(tag==='option')n.value='';return n;}
 function empty(id,text,error=false){$(id).replaceChildren();$(id).textContent=text;$(id).className=`empty${error?' error':''}`;}
 function selected(){return $('location').value;}
 function syncOptionControls(){
   const ready=!!session?.connected&&!!selected();
+  $('read-performance').disabled=!ready||performanceBusy;
   const item=$('location').selectedOptions[0];
   const eligible=ready&&item?.dataset.businessType==='CUSTOMER_LOCATION_ONLY'&&item?.dataset.businessRegion==='SA';
   $('options-settings').disabled=!ready;$('use-address').disabled=!eligible;
@@ -28,7 +30,7 @@ function syncOptionControls(){
   $('context-note').textContent=!ready?'تتاح إضافة العنوان بعد تسجيل الدخول، واختيار ملف مؤهل في السعودية.':eligible?'ترجع Google أن النشاط يزور العملاء فقط في السعودية. يتحقق الخادم من بلد الملف ونوعه قبل إرسال العنوان.':'لم تؤكد Google أهلية نوع الملف وبلده لإضافة عنوان منطقة خدمة في السعودية. يمكنك قراءة الخيارات دون عنوان.';
 }
 function clearVerificationAddress(){for(const id of ['verification-street','verification-region','verification-city','verification-postal'])$(id).value='';$('address-confirmed').checked=false;}
-function resetResult(){epoch++;$('status-title').textContent='لم تُقرأ الحالة بعد';$('status-copy').textContent='اختر ملفًا واقرأ حالته من Google.';$('status-dot').className='status-dot';for(const id of ['authority','voice','checked'])$(id).textContent='—';$('history-count').textContent='لم يُقرأ بعد';empty('history','تظهر هنا محاولات التحقق بعد القراءة.');empty('options','اضغط «قراءة الخيارات» لعرض ما أتاحته Google لهذا الملف.');$('refresh-status').disabled=!selected();$('use-address').checked=false;clearVerificationAddress();syncOptionControls();}
+function resetResult(){epoch++;performancePacket=null;performanceBusy=false;$('download-performance').disabled=true;empty('performance-result','لم تُقرأ إحصاءات هذا الملف بعد.');$('status-title').textContent='لم تُقرأ الحالة بعد';$('status-copy').textContent='اختر ملفًا واقرأ حالته من Google.';$('status-dot').className='status-dot';for(const id of ['authority','voice','checked'])$(id).textContent='—';$('history-count').textContent='لم يُقرأ بعد';empty('history','تظهر هنا محاولات التحقق بعد القراءة.');empty('options','اضغط «قراءة الخيارات» لعرض ما أتاحته Google لهذا الملف.');$('refresh-status').disabled=!selected();$('use-address').checked=false;clearVerificationAddress();syncOptionControls();}
 async function accounts(append=false){
   if(!append){$('account').replaceChildren(node('option','اختر الحساب'));$('location').replaceChildren(node('option','اختر الملف'));accountPage=null;locationPage=null;$('more-locations').hidden=true;resetResult();}
   try{const data=await api('accounts',append?{pageToken:accountPage}:{});for(const a of data.accounts){const n=node('option',a.accountName||a.name);n.value=a.name;$('account').append(n);}accountPage=data.nextPageToken;$('more-accounts').hidden=!accountPage;if(!data.accounts.length&&!append)notify('Google لم ترجع حسابات ملفات تجارية لهذا الدخول.');else notify('تمت قراءة الحسابات. اختر حساب الملفات التجارية.','success');}catch(e){notify(e.message,'error');}
@@ -59,6 +61,55 @@ function renderHistory(part){
 async function status(){
   const location=selected();if(!location)return;const mark=epoch;$('refresh-status').disabled=true;
   try{const data=await api('status',{location});if(mark!==epoch)return;renderVoice(data.voice);renderHistory(data.history);$('checked').textContent=time(data.checkedAt);$('live-step').classList.add('done');$('live-readiness').textContent='تمت قراءة بيانات فعلية من Google.';notify('تم تحديث الرد من Google. يعرض السجل نتائج المحاولات بصورة مستقلة عن حالة الملف.','success');}catch(e){if(mark===epoch)notify(e.message,'error');}finally{if(mark===epoch)$('refresh-status').disabled=!selected();}
+}
+function renderPerformance(packet){
+  const daily=packet.daily,coverage=daily.coverage,summary=coverage.summary;
+  const total=Object.entries(summary).filter(([key])=>key.startsWith('BUSINESS_IMPRESSIONS_')).reduce((sum,[,value])=>sum+value,0);
+  const result=$('performance-result');result.className='';result.replaceChildren();
+  result.append(node('p',`${daily.rangeStart} إلى ${daily.rangeEnd} · بيانات ${coverage.reportingDays} يومًا من أصل ٩٠ · آخر يوم في الرد: ${coverage.lastReportDate}`));
+  const facts=node('div',undefined,'facts');
+  for(const [label,value]of [['مرات الظهور',total],['ضغطات الاتصال',summary.CALL_CLICKS],['ضغطات الموقع',summary.WEBSITE_CLICKS],['طلبات الاتجاهات',summary.BUSINESS_DIRECTION_REQUESTS],['الحجوزات',summary.BUSINESS_BOOKINGS]]){
+    const item=node('div');item.append(node('span',label),node('strong',Number.isSafeInteger(value)?new Intl.NumberFormat('ar-SA').format(value):'غير متاح'));facts.append(item);
+  }
+  result.append(facts,node('p',`وقت جلب الأداء من Google: ${time(daily.syncedAt)}`,'fine'));
+  result.append(node('p',packet.keywordComplete?`اكتملت قراءة كلمات البحث المتاحة: ${packet.keywordPages.length} صفحات.`:'قراءة كلمات البحث جزئية. بيانات الأداء اليومي مستقلة عنها؛ راجع التنبيه المرفق.','fine'));
+  for(const error of packet.keywordErrors)result.append(node('p',`${error.reportMonth}: ${error.message}`,'empty error'));
+}
+async function readPerformance(){
+  const location=selected();if(!location||!session?.connected||performanceBusy)return;
+  const mark=epoch;performanceBusy=true;performancePacket=null;$('download-performance').disabled=true;$('read-performance').disabled=true;empty('performance-result','جارٍ قراءة الأداء وكلمات البحث من Google…');
+  try{
+    const daily=await api('performance',{location});if(mark!==epoch)return;
+    const packet={schemaVersion:1,source:'google_business_profile_performance',daily,keywordPages:[],keywordErrors:[],keywordComplete:true};
+    const start=new Date(daily.rangeStart.slice(0,7)+'-01T00:00:00Z'),end=daily.rangeEnd.slice(0,7);
+    let totalRows=0,stop=false;
+    for(let month=start;month.toISOString().slice(0,7)<=end;month=new Date(Date.UTC(month.getUTCFullYear(),month.getUTCMonth()+1,1))){
+      const reportMonth=month.toISOString().slice(0,10),seen=new Set();let pageToken='';
+      do{
+        try{
+          if(seen.size>=20)throw new Error('توقفت القراءة عند حد الصفحات. النتائج جزئية.');
+          const page=await api('keywords',{location,reportMonth,pageToken});if(mark!==epoch)return;
+          const next=page.keywordResponse.nextPageToken||'';totalRows+=page.rows;
+          if((next&&seen.has(next))||seen.size>=20||totalRows>2000)throw new Error('توقفت القراءة عند حد الصفحات أو بسبب صفحة متكررة. النتائج جزئية.');
+          packet.keywordPages.push(page);if(next)seen.add(next);pageToken=next;
+        }catch(e){
+          if(mark!==epoch)return;
+          packet.keywordComplete=false;packet.keywordErrors.push({reportMonth,message:e.message});pageToken='';
+          if(e.status===401||e.providerStatus===429||e.providerStatus>=500||totalRows>2000)stop=true;
+        }
+      }while(pageToken);
+      if(stop)break;
+    }
+    if(mark!==epoch)return;
+    performancePacket=packet;renderPerformance(packet);$('download-performance').disabled=false;
+    notify(packet.keywordComplete?'تمت قراءة الأداء وكلمات البحث من Google. لم تُرسل البيانات إلى أي لوحة أخرى.':'تمت قراءة الأداء، وقراءة كلمات البحث جزئية. يمكن تنزيل الردود الناجحة ومراجعة الخطأ.',packet.keywordComplete?'success':'');
+  }catch(e){if(mark===epoch){empty('performance-result',e.message,true);notify(e.message,'error');}}
+  finally{if(mark===epoch){performanceBusy=false;$('read-performance').disabled=!session?.connected||!selected();}}
+}
+function downloadPerformance(){
+  if(!performancePacket||performancePacket.daily.locationId!==selected())return;
+  const blob=new Blob([JSON.stringify(performancePacket,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=`google-performance-${performancePacket.daily.locationId.split('/')[1]}-${performancePacket.daily.rangeEnd}.json`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 async function options(){
   const location=selected();if(!location||!session?.connected||!$('options-form').reportValidity())return;
@@ -93,5 +144,6 @@ $('account').addEventListener('change',()=>locations());$('location').addEventLi
 $('use-address').addEventListener('change',()=>{if(!$('use-address').checked)clearVerificationAddress();syncOptionControls();});
 $('options-form').addEventListener('submit',event=>{event.preventDefault();options();});
 $('reload-accounts').addEventListener('click',()=>accounts());$('more-accounts').addEventListener('click',()=>accounts(true));$('more-locations').addEventListener('click',()=>locations(true));$('refresh-status').addEventListener('click',status);
+$('read-performance').addEventListener('click',readPerformance);$('download-performance').addEventListener('click',downloadPerformance);
 boot();
 
