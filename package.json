@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "build": "node scripts/build.mjs",
+    "build": "node scripts/build.mjs && node scripts/developer-credit.mjs dist",
     "check": "node scripts/check.mjs"
   },
   "engines": {
